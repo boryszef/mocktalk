@@ -40,12 +40,13 @@ class SSHServerInterface(paramiko.ServerInterface):
 
 class SSHClientHandler(threading.Thread):
 
-    def __init__(self, sock, address, rsa_private_key_path):
+    def __init__(self, sock, address, rsa_private_key_path, script=None):
         super().__init__()
         self.socket = sock
         self.address, self.port = address
         self.rsa_key = paramiko.RSAKey(filename=rsa_private_key_path)
         self.interface = SSHServerInterface()
+        self.script = script
 
     def run(self):
         transport = paramiko.Transport(self.socket)
@@ -60,10 +61,10 @@ class SSHClientHandler(threading.Thread):
             logger.info(f'[{self.__class__.__name__}] got a command {cmd}')
         elif channel and event == 'shell':
             channel.send(f'\r\n{self.__class__.__name__}:\r\n')
-            pipe = channel.makefile("rU")
-            data = pipe.readline().strip("\r\n")
-            while not data == 'exit':
-                data = pipe.readline().strip("\r\n")
+            pipe = channel.makefile('rbU')
+            data = True
+            while data:
+                data = pipe.readline()
                 logger.debug(f'[{self.__class__.__name__}] got data on stdin {data}')
         channel.close()
         transport.close()
@@ -71,16 +72,17 @@ class SSHClientHandler(threading.Thread):
 
 class SSHServer(threading.Thread):
 
-    def __init__(self, rsa_private_key_path, address='', port=22):
+    def __init__(self, rsa_private_key_path, address='', port=22, script=None):
         super().__init__()
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind((address, port))
         self.server.listen(5)
         self.rsa_private_key_path = rsa_private_key_path
+        self.script = script
 
     def run(self):
         while True:
             soc, addr = self.server.accept()
             logger.info(f'[{self.__class__.__name__}] new connection {addr}')
-            handler = SSHClientHandler(soc, addr, self.rsa_private_key_path)
+            handler = SSHClientHandler(soc, addr, self.rsa_private_key_path, self.script)
             handler.start()
