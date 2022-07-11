@@ -1,15 +1,16 @@
 import socket
 import threading
+from typing import List, Tuple
+
+from mocktalk.script import Script
 
 from . import logger
 
 
-TIMEOUT = 5
-
-
 class TelnetConnectionHandler(threading.Thread):
 
-    def __init__(self, sock, address, clients, lock, script):
+    def __init__(self, sock: socket.socket, address: Tuple[str, int],
+                 script: Script, clients: List[str], lock: threading.Lock):
         super().__init__()
         self.socket = sock
         self.address, self.port = address
@@ -34,57 +35,14 @@ class TelnetConnectionHandler(threading.Thread):
                 self.socket.send(match)
             logger.debug(
                 f'[{self.__class__.__name__}] message from '
-                '{self.client_name}: {message}'
+                f'{self.client_name}: {message}'
             )
 
         self.socket.close()
         logger.info(
             f'[{self.__class__.__name__}] connection from '
-            '{self.client_name} closed'
+            f'{self.client_name} closed'
         )
         self.lock.acquire()
         self.clients.remove(self.client_name)
         self.lock.release()
-
-
-class TelnetServer(threading.Thread):
-
-    def __init__(self, address='', port=23, script=None):
-        super().__init__()
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.bind((address, port))
-        self.server.listen(5)
-        self.server.settimeout(TIMEOUT)
-        self.lock = threading.Lock()
-        self.clients = []
-        self.script = script
-        self.halt_event = threading.Event()
-
-    def run(self):
-        while not self.halt_event.is_set():
-            handler = self._get_handler()
-            if handler is None:
-                continue
-            handler.start()
-        logger.info(f'[{self.__class__.__name__}] Closing socket')
-        self.server.close()
-
-    def _get_handler(self):
-        try:
-            soc, addr = self.server.accept()
-        except socket.timeout:
-            return None
-        logger.info(
-            f'[{self.__class__.__name__}] new connection '
-            '{addr[0]}:{addr[1]}'
-        )
-        return TelnetConnectionHandler(
-            soc,
-            addr,
-            self.clients,
-            self.lock,
-            self.script
-        )
-
-    def stop(self):
-        self.halt_event.set()

@@ -1,8 +1,11 @@
 import socket
 import threading
 from queue import Queue
+from typing import Tuple
 
 import paramiko
+
+from mocktalk.script import Script
 
 from . import logger
 
@@ -15,6 +18,7 @@ class SSHServerInterface(paramiko.ServerInterface):
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
             return paramiko.OPEN_SUCCEEDED
+        return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_auth_publickey(self, username, key):
         return paramiko.AUTH_SUCCESSFUL
@@ -38,10 +42,14 @@ class SSHServerInterface(paramiko.ServerInterface):
         self.event_queue.put('shell')
         return True
 
+    def get_banner(self):
+        return f'{self.__class__.__name__}\n', 'en-US'
+
 
 class SSHClientHandler(threading.Thread):
 
-    def __init__(self, sock, address, rsa_private_key_path, script=None):
+    def __init__(self, sock: socket.socket, address: Tuple[str, int],
+                 script: Script, rsa_private_key_path: str):
         super().__init__()
         self.socket = sock
         self.address, self.port = address
@@ -61,36 +69,18 @@ class SSHClientHandler(threading.Thread):
             cmd = self.interface.event_queue.get().decode('UTF-8')
             logger.info(f'[{self.__class__.__name__}] got a command {cmd}')
         elif channel and event == 'shell':
-            channel.send(f'\r\n{self.__class__.__name__}:\r\n')
             pipe = channel.makefile('rbU')
-            data = True
-            while data:
+            while not channel.exit_status_ready():
+                channel.send(f'\r\n{self.__class__.__name__}> ')
                 data = pipe.readline()
+                match = self.script.match(data)
+                if match:
+                    channel.send(match.decode('UTF-8'))
                 logger.debug(
                     f'[{self.__class__.__name__}] got data on stdin {data}'
                 )
+            logger.info(
+                f'[{self.__class__.__name__}] interactive session closed'
+            )
         channel.close()
         transport.close()
-
-
-class SSHServer(threading.Thread):
-
-    def __init__(self, rsa_private_key_path, address='', port=22, script=None):
-        super().__init__()
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.bind((address, port))
-        self.server.listen(5)
-        self.rsa_private_key_path = rsa_private_key_path
-        self.script = script
-
-    def run(self):
-        while True:
-            soc, addr = self.server.accept()
-            logger.info(f'[{self.__class__.__name__}] new connection {addr}')
-            handler = SSHClientHandler(
-                soc,
-                addr,
-                self.rsa_private_key_path,
-                self.script
-            )
-            handler.start()

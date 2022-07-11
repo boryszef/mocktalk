@@ -1,7 +1,6 @@
 import click as click
 
-from mocktalk.ssh import SSHServer
-from mocktalk.telnet import TelnetServer
+from mocktalk.servers import SSHServer, TelnetServer
 
 
 @click.command()

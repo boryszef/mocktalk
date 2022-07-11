@@ -2,7 +2,8 @@ from threading import Lock
 from unittest.mock import Mock
 
 from mocktalk.script import Script
-from mocktalk.telnet import TelnetServer, TelnetConnectionHandler
+from mocktalk.servers import TelnetServer
+from mocktalk.telnet import TelnetConnectionHandler
 
 
 def test_telnet_ip_and_port():
@@ -12,13 +13,11 @@ def test_telnet_ip_and_port():
 
 
 def test_script():
-    ip = '127.0.0.1'
-    port = 3024
     sock = Mock()
     sock.recv.side_effect = b'foo', b'dummy', b''
     server = TelnetConnectionHandler(
         sock,
-        (ip, port),
+        ('127.0.0.1', 2223),
         [],
         Lock(),
         Script(('foo.*', 'bar'))
