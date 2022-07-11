@@ -30,7 +30,8 @@ class SSHServerInterface(paramiko.ServerInterface):
         self.event_queue.put(command)
         return True
 
-    def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
+    def check_channel_pty_request(self, channel, term, width, height,
+                                  pixelwidth, pixelheight, modes):
         return True
 
     def check_channel_shell_request(self, channel):
@@ -65,7 +66,9 @@ class SSHClientHandler(threading.Thread):
             data = True
             while data:
                 data = pipe.readline()
-                logger.debug(f'[{self.__class__.__name__}] got data on stdin {data}')
+                logger.debug(
+                    f'[{self.__class__.__name__}] got data on stdin {data}'
+                )
         channel.close()
         transport.close()
 
@@ -84,5 +87,10 @@ class SSHServer(threading.Thread):
         while True:
             soc, addr = self.server.accept()
             logger.info(f'[{self.__class__.__name__}] new connection {addr}')
-            handler = SSHClientHandler(soc, addr, self.rsa_private_key_path, self.script)
+            handler = SSHClientHandler(
+                soc,
+                addr,
+                self.rsa_private_key_path,
+                self.script
+            )
             handler.start()

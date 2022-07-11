@@ -32,10 +32,16 @@ class TelnetConnectionHandler(threading.Thread):
             match = self.script.match(message)
             if match:
                 self.socket.send(match)
-            logger.debug(f'[{self.__class__.__name__}] message from {self.client_name}: {message}')
+            logger.debug(
+                f'[{self.__class__.__name__}] message from '
+                '{self.client_name}: {message}'
+            )
 
         self.socket.close()
-        logger.info(f'[{self.__class__.__name__}] connection from {self.client_name} closed')
+        logger.info(
+            f'[{self.__class__.__name__}] connection from '
+            '{self.client_name} closed'
+        )
         self.lock.acquire()
         self.clients.remove(self.client_name)
         self.lock.release()
@@ -56,14 +62,29 @@ class TelnetServer(threading.Thread):
 
     def run(self):
         while not self.halt_event.is_set():
-            try:
-                soc, addr = self.server.accept()
-            except socket.timeout:
+            handler = self._get_handler()
+            if handler is None:
                 continue
-            logger.info(f'[{self.__class__.__name__}] new connection {addr[0]}:{addr[1]}')
-            handler = TelnetConnectionHandler(soc, addr, self.clients, self.lock, self.script).start()
+            handler.start()
         logger.info(f'[{self.__class__.__name__}] Closing socket')
         self.server.close()
+
+    def _get_handler(self):
+        try:
+            soc, addr = self.server.accept()
+        except socket.timeout:
+            return None
+        logger.info(
+            f'[{self.__class__.__name__}] new connection '
+            '{addr[0]}:{addr[1]}'
+        )
+        return TelnetConnectionHandler(
+            soc,
+            addr,
+            self.clients,
+            self.lock,
+            self.script
+        )
 
     def stop(self):
         self.halt_event.set()
