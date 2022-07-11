@@ -42,7 +42,7 @@ class MockServerBase(threading.Thread):
             f'[{self.__class__.__name__}] new connection '
             '{addr[0]}:{addr[1]}'
         )
-        return self.handler(soc, addr, *self.handler_args)
+        return self.handler(soc, addr, self.script, *self.handler_args)
 
     def stop(self):
         self.halt_event.set()

@@ -18,6 +18,7 @@ class SSHServerInterface(paramiko.ServerInterface):
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
             return paramiko.OPEN_SUCCEEDED
+        return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_auth_publickey(self, username, key):
         return paramiko.AUTH_SUCCESSFUL
@@ -40,6 +41,9 @@ class SSHServerInterface(paramiko.ServerInterface):
     def check_channel_shell_request(self, channel):
         self.event_queue.put('shell')
         return True
+
+    def get_banner(self):
+        return f'{self.__class__.__name__}\n', 'en-US'
 
 
 class SSHClientHandler(threading.Thread):
@@ -65,16 +69,18 @@ class SSHClientHandler(threading.Thread):
             cmd = self.interface.event_queue.get().decode('UTF-8')
             logger.info(f'[{self.__class__.__name__}] got a command {cmd}')
         elif channel and event == 'shell':
-            channel.send(f'\r\n{self.__class__.__name__}:\r\n')
             pipe = channel.makefile('rbU')
-            data = True
-            while data:
+            while not channel.exit_status_ready():
+                channel.send(f'\r\n{self.__class__.__name__}> ')
                 data = pipe.readline()
                 match = self.script.match(data)
                 if match:
-                    self.socket.send(match)
+                    channel.send(match.decode('UTF-8'))
                 logger.debug(
                     f'[{self.__class__.__name__}] got data on stdin {data}'
                 )
+            logger.info(
+                f'[{self.__class__.__name__}] interactive session closed'
+            )
         channel.close()
         transport.close()

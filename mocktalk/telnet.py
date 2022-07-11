@@ -35,13 +35,13 @@ class TelnetConnectionHandler(threading.Thread):
                 self.socket.send(match)
             logger.debug(
                 f'[{self.__class__.__name__}] message from '
-                '{self.client_name}: {message}'
+                f'{self.client_name}: {message}'
             )
 
         self.socket.close()
         logger.info(
             f'[{self.__class__.__name__}] connection from '
-            '{self.client_name} closed'
+            f'{self.client_name} closed'
         )
         self.lock.acquire()
         self.clients.remove(self.client_name)
