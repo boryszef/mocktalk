@@ -1,8 +1,11 @@
 import socket
 import threading
 from queue import Queue
+from typing import Tuple
 
 import paramiko
+
+from mocktalk.script import Script
 
 from . import logger
 
@@ -41,7 +44,8 @@ class SSHServerInterface(paramiko.ServerInterface):
 
 class SSHClientHandler(threading.Thread):
 
-    def __init__(self, sock, address, rsa_private_key_path, script=None):
+    def __init__(self, sock: socket.socket, address: Tuple[str, int],
+                 script: Script, rsa_private_key_path: str):
         super().__init__()
         self.socket = sock
         self.address, self.port = address
@@ -66,31 +70,11 @@ class SSHClientHandler(threading.Thread):
             data = True
             while data:
                 data = pipe.readline()
+                match = self.script.match(data)
+                if match:
+                    self.socket.send(match)
                 logger.debug(
                     f'[{self.__class__.__name__}] got data on stdin {data}'
                 )
         channel.close()
         transport.close()
-
-
-class SSHServer(threading.Thread):
-
-    def __init__(self, rsa_private_key_path, address='', port=22, script=None):
-        super().__init__()
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.bind((address, port))
-        self.server.listen(5)
-        self.rsa_private_key_path = rsa_private_key_path
-        self.script = script
-
-    def run(self):
-        while True:
-            soc, addr = self.server.accept()
-            logger.info(f'[{self.__class__.__name__}] new connection {addr}')
-            handler = SSHClientHandler(
-                soc,
-                addr,
-                self.rsa_private_key_path,
-                self.script
-            )
-            handler.start()
