@@ -18,9 +18,9 @@ def test_script():
     server = TelnetConnectionHandler(
         sock,
         ('127.0.0.1', 2223),
+        Script(('foo.*', 'bar')),
         [],
-        Lock(),
-        Script(('foo.*', 'bar'))
+        Lock()
     )
     server.run()
     assert sock.recv.call_count == 3

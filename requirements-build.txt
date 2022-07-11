@@ -1,0 +1,6 @@
+build==0.7.0
+flake8==4.0.1
+ipython==7.29.0
+mypy==0.961
+pytest==6.2.5
+twine==4.0.1

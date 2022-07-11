@@ -71,7 +71,6 @@ class SSHClientHandler(threading.Thread):
         elif channel and event == 'shell':
             pipe = channel.makefile('rbU')
             while not channel.exit_status_ready():
-                channel.send(f'\r\n{self.__class__.__name__}> ')
                 data = pipe.readline()
                 match = self.script.match(data)
                 if match:
