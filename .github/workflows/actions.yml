@@ -1,0 +1,30 @@
+name: Static code analysis
+
+on: [push]
+
+jobs:
+  Linter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.9
+      
+      - name: Install linter tools
+        run: pip install flake8 mypy
+      
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: Install mypy stubs
+        run: python -m mypy --non-interactive --install-types mocktalk
+
+      - name: Lint
+        uses: wearerequired/lint-action@v2.0.0
+        with:
+          flake8: true
+          mypy: true
